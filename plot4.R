@@ -1,53 +1,28 @@
-## The aim of this code is to reconstruct given plots using the base plotting 
-## system. The code file should include code for reading the data so that the plot
-## can be fully reproduced. It should then Construct the plot and save it to a PNG 
-## file with a width of 480 pixels and a height of 480 pixels.
+## Plot how emissions from coal combustion related sources have changed in the 
+## USA fr0m 1999 - 2008
 
 
-## get data
-dataAll <- read.table("household_power_consumption.txt", header = TRUE, sep = ";",
-                      na.strings = "?", colClasses = c("character", "character", rep("numeric", 7)))
+## Get data
+NEI <- readRDS("summarySCC_PM25.rds")
+SCC <- readRDS("Source_Classification_Code.rds")
 
-## subset required dates
-data <- dataAll[dataAll$Date == "1/2/2007" | dataAll$Date == "2/2/2007", ]
+## Subset required data
+coalCombust = which(grepl("coal", SCC$SCC.Level.Three, ignore.case = TRUE)| 
+                    grepl("lignite", SCC$SCC.Level.Three, ignore.case=TRUE))
+coalSCC = SCC[coalCombust, 1]
+coalNEI = subset(NEI, SCC %in% coalSCC)
+coalData = aggregate(Emissions ~ year, data=coalNEI, sum)
 
-## create new column with date and time in correct format
-data$Timestamp <- strptime(paste(data[,1],data[,2]), "%d/%m/%Y %H:%M")
+## Tidy emissions for neater plot
+coalData$EmissionsDivided <- coalData$Emissions / 1000
 
-## set global parameters to set no. of plots per row,column & text size
-par(mfrow = c(2,2))
-par(cex = 0.4)
-## Create plots using matching parameters to given plots
-plot(
-  data$Timestamp,
-  data$Global_active_power,
-  type="l",
-  xlab="",
-  ylab="Global Active Power"
-)
-plot(
-  data$Timestamp,
-  data$Voltage,
-  type="l",
-  xlab="datetime",
-  ylab="Voltage"
-)
-plot(
-  data$Timestamp,
-  data$Sub_metering_1,
-  type="n",
-  xlab="",
-  ylab="Energy sub metering"
-)
-points(data$Timestamp,data$Sub_metering_1, type="l")
-points(data$Timestamp,data$Sub_metering_2, type="l", col="red")
-points(data$Timestamp,data$Sub_metering_3, type="l", col="blue")
-legend("topright", pch = "-", col = c("black", "red","blue"),
-       legend = c("Sub_metering_1","Sub_metering_2","Sub_metering_3"), bty="n")
+## Create plot
+plot(coalData$EmissionsDivided, type = "b",
+     xaxt = "n", xlab = "Year",
+     ylab = expression('PM'[2.5]*' emission from coal combustion sources (in 1000 tons)'),
+     main = "Coal Emissions Across USA")
+axis(1, at=c(1:4), labels=c("1999", "2002", "2005", "2008"))
 
-plot(data$Timestamp, data$Global_reactive_power, type="l", xlab="datetime",
-  ylab="Global_reactive_power")
-
-## create png file to required specifications
+## Create png file
 dev.copy(png, file = "plot4.png", width=480, height=480)
 dev.off() 
